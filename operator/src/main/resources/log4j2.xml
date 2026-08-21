@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration name="Config" status="WARN">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss,SSS} %-5level %-40c{1.} - %msg%n%throwable"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <!-- LOG_LEVEL=debug surfaces the per-poll "below threshold" decisions. -->
+    <Logger level="${env:LOG_LEVEL:-info}" name="com.nadberezny.flink.disk" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+    </Root>
+  </Loggers>
+</Configuration>

@@ -1,0 +1,63 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.nadberezny.flink.disk'
+version = '0.1.0-SNAPSHOT'
+description = 'Flink plugin: applies flink-disk-operator\'s desired volume size at admission time'
+
+ext {
+    // This module does not produce its own image; its jar is baked into a patched
+    // flink-kubernetes-operator image. See Dockerfile and k8s-infra-dev/flink_operator.tf.
+    pluginDirName = 'flink-disk-mutator'
+}
+
+dependencies {
+    // Bundled into the jar (see the `jar` task below) because the webhook has no idea
+    // about our classes. It is dependency-free, so it cannot shadow anything.
+    implementation project(':contract')
+
+    // Everything else must NOT be bundled. The webhook loads this jar with a child-first
+    // classloader whose parent already has flink-core, the operator API, fabric8 and Jackson.
+    // Bundling any of them would create a second, incompatible copy - and since
+    // `org.apache.flink.` is parent-first for plugins, our FlinkDeployment would not even be
+    // the same class as the webhook's.
+    compileOnly libs.flink.kubernetes.operator
+    compileOnly libs.slf4j.api
+
+    testImplementation libs.flink.kubernetes.operator
+    testImplementation libs.slf4j.api
+    testImplementation libs.junit.jupiter.api
+    testRuntimeOnly libs.junit.jupiter.engine
+    testRuntimeOnly libs.junit.platform.launcher
+}
+
+// The plugin runs inside the flink-kubernetes-operator webhook, whose image ships a Java 17 JRE
+// (the operator's own Dockerfile builds with ARG JAVA_VERSION=17). Compiling at the repo-wide 21
+// produces class file version 65, which the webhook cannot load: it dies with
+// UnsupportedClassVersionError during MutatorUtils.discoverMutators, taking the whole webhook
+// process down and turning every FlinkDeployment apply into a 502 from the admission webhook.
+// PluginClassLoadingTest asserts the resulting bytecode version, so this cannot regress silently.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+}
+
+jar {
+    archiveBaseName = 'flink-disk-mutator'
+    archiveClassifier = ''
+
+    // Fold :contract in. runtimeClasspath is exactly [:contract] by construction - every other
+    // dependency above is compileOnly - so this stays a thin jar rather than a fat one.
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    // :contract carries no metadata worth merging, and duplicate manifests would break the jar.
+    exclude 'META-INF/MANIFEST.MF'
+}
+
+// The plugin-loading test needs the real jar, laid out the way Flink expects.
+tasks.named('test') {
+    dependsOn tasks.named('jar')
+    systemProperty 'mutator.jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath
+    systemProperty 'mutator.pluginDirName', pluginDirName
+}

@@ -1,0 +1,116 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+    flink-disk-operator.nadberezny.com/managed: "true"
+spec:
+  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
+  flinkVersion: "{{ required "job.flinkVersion is required" .Values.job.flinkVersion }}"
+  serviceAccount: {{ .Values.serviceAccount }}
+  {{- if ne (int .Values.job.restartNonce) 0 }}
+  restartNonce: {{ .Values.job.restartNonce }}
+  {{- end }}
+
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "{{ .Values.taskManager.numberOfTaskSlots }}"
+    jobmanager.memory.process.size: 512mb
+    rest.flamegraph.enabled: "false"
+    restart-strategy.type: exponential-delay
+    restart-strategy.exponential-delay.initial-backoff: 10 s
+    restart-strategy.exponential-delay.max-backoff: 5 min
+    kubernetes.operator.job.restart.failed: "true"
+    kubernetes.operator.job.autoscaler.enabled: "false"
+    {{- if .Values.localStorage.enabled }}
+    io.tmp.dirs: {{ .Values.localStorage.mountPath }}
+    {{- end }}
+    {{- if .Values.checkpointing.enabled }}
+    state.backend.type: rocksdb
+    state.backend.incremental: "true"
+    execution.checkpointing.interval: {{ .Values.checkpointing.interval }}
+    execution.checkpointing.min-pause: {{ .Values.checkpointing.minPause }}
+    execution.checkpointing.timeout: {{ .Values.checkpointing.timeout }}
+    state.checkpoints.dir: {{ required "state.checkpointsDir is required when checkpointing.enabled" .Values.state.checkpointsDir }}
+    state.savepoints.dir: {{ required "state.savepointsDir is required when checkpointing.enabled" .Values.state.savepointsDir }}
+    {{- end }}
+    {{- if .Values.highAvailability.enabled }}
+    high-availability.type: kubernetes
+    high-availability.storageDir: {{ required "highAvailability.storageDir is required when highAvailability.enabled" .Values.highAvailability.storageDir }}
+    {{- end }}
+    {{- if .Values.s3.enabled }}
+    s3.endpoint: {{ .Values.s3.endpoint }}
+    s3.path-style-access: "true"
+    s3.access-key: {{ .Values.s3.accessKey }}
+    s3.secret-key: {{ .Values.s3.secretKey }}
+    {{- end }}
+
+  jobManager:
+    resource:
+      memory: {{ .Values.jobManager.memorySize }}
+      cpu: {{ .Values.jobManager.cpu }}
+    podTemplate:
+      spec:
+        containers:
+          - name: flink-main-container
+            envFrom:
+              - configMapRef:
+                  name: {{ .Values.name }}
+            {{- if .Values.localStorage.enabled }}
+            volumeMounts:
+              - name: {{ .Values.localStorage.volumeName }}
+                mountPath: {{ .Values.localStorage.mountPath }}
+            {{- end }}
+        {{- if .Values.localStorage.enabled }}
+        volumes:
+          # Plain emptyDir: the JobManager only needs io.tmp.dirs to exist. The
+          # volume flink-disk-operator grows is the TaskManager one below.
+          - name: {{ .Values.localStorage.volumeName }}
+            emptyDir: {}
+        {{- end }}
+
+  taskManager:
+    replicas: {{ .Values.taskManager.replicas }}
+    resource:
+      memory: {{ .Values.taskManager.memorySize }}
+      cpu: {{ .Values.taskManager.cpu }}
+    podTemplate:
+      spec:
+        containers:
+          - name: flink-main-container
+            envFrom:
+              - configMapRef:
+                  name: {{ .Values.name }}
+            {{- if .Values.localStorage.enabled }}
+            volumeMounts:
+              - name: {{ .Values.localStorage.volumeName }}
+                mountPath: {{ .Values.localStorage.mountPath }}
+            {{- end }}
+        {{- if .Values.localStorage.enabled }}
+        volumes:
+          - name: {{ .Values.localStorage.volumeName }}
+            ephemeral:
+              volumeClaimTemplate:
+                metadata:
+                  labels:
+                    app: {{ .Values.name }}
+                spec:
+                  accessModes:
+                    - ReadWriteOnce
+                  storageClassName: {{ .Values.localStorage.storageClassName }}
+                  resources:
+                    requests:
+                      storage: {{ .Values.localStorage.size }}
+        {{- end }}
+
+  job:
+    jarURI: {{ .Values.job.jarURI }}
+    parallelism: {{ .Values.job.parallelism }}
+    state: {{ .Values.job.state }}
+    upgradeMode: {{ .Values.job.upgradeMode }}
+
+  logConfiguration:
+    "log4j-console.properties": |
+      {{ .Files.Get "log4j-console.properties" | nindent 6 }}

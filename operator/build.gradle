@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.nadberezny.flink.disk'
+version = '0.1.0-SNAPSHOT'
+description = 'flink-disk-operator: grows Flink TaskManager ephemeral volumes based on Prometheus disk usage'
+
+ext {
+    // Docker image consumed by k8s-infra-dev/flink_disk_operator.tf
+    targetDockerImageName = 'flink-disk-operator'
+}
+
+application {
+    // Produces build/install/flink-disk-operator/bin/flink-disk-operator, which the
+    // Dockerfile copies wholesale - no shading, no fat jar.
+    applicationName = 'flink-disk-operator'
+    mainClass = 'com.nadberezny.flink.disk.Runner'
+
+    // flink-kubernetes-operator-api ships a log4j2.properties at its jar root, and log4j2
+    // prefers .properties over .xml during auto-discovery - so ours loses and LOG_LEVEL
+    // silently stops working. Name the config explicitly instead of relying on lookup order.
+    applicationDefaultJvmArgs = ['-Dlog4j2.configurationFile=classpath:log4j2.xml']
+}
+
+dependencies {
+    implementation project(':contract')
+    implementation libs.josdk.framework
+    // Typed FlinkDeployment CR model. Brings its own fabric8 client; Gradle resolves
+    // it against JOSDK's - see `./gradlew :operator:dependencies` if that ever skews.
+    implementation libs.flink.kubernetes.operator.api
+    implementation libs.slf4j.api
+
+    runtimeOnly libs.log4j.slf4j2.impl
+    runtimeOnly libs.log4j.core
+
+    testImplementation libs.junit.jupiter.api
+    testRuntimeOnly libs.junit.jupiter.engine
+    testRuntimeOnly libs.junit.platform.launcher
+}

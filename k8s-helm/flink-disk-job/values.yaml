@@ -1,0 +1,56 @@
+name: flink-disk-job
+namespace: stream
+jobName: flink-disk-job
+
+image:
+  repository: k3d-flink:12345/flink-disk-job
+  tag: dev
+  pullPolicy: IfNotPresent
+
+serviceAccount: flink
+
+job:
+  flinkVersion: v2_1
+  jarURI: local:///opt/flink/usrlib/flink-job.jar
+  state: running
+  parallelism: 2
+  upgradeMode: stateless
+  restartNonce: 0
+  recordsPerSecond: 1
+
+jobManager:
+  cpu: 0.5
+  memorySize: 1g
+
+taskManager:
+  replicas: 1
+  numberOfTaskSlots: 2
+  cpu: 0.5
+  memorySize: 1600m
+
+localStorage:
+  enabled: true
+  volumeName: local-storage
+  mountPath: /opt/flink/local-storage
+  storageClassName: local-path
+  size: 1Gi
+
+checkpointing:
+  enabled: false
+  interval: 60 s
+  minPause: 50 s
+  timeout: 10 min
+
+highAvailability:
+  enabled: false
+  storageDir: ""
+
+s3:
+  enabled: false
+  endpoint: ""
+  accessKey: ""
+  secretKey: ""
+
+state:
+  checkpointsDir: ""
+  savepointsDir: ""

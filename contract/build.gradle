@@ -1,0 +1,14 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.nadberezny.flink.disk'
+version = '0.1.0-SNAPSHOT'
+description = 'Label, annotation and ConfigMap keys shared by the operator and the mutator plugin'
+
+dependencies {
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+}

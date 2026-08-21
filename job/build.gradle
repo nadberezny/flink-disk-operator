@@ -1,0 +1,30 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.nadberezny.flink'
+version = '0.1-SNAPSHOT'
+
+ext {
+    targetDockerImageName = 'flink-disk-job'
+}
+
+dependencies {
+    compileOnly libs.flink.streaming.java
+    compileOnly libs.flink.clients
+    compileOnly libs.flink.connector.datagen
+
+    testImplementation libs.flink.streaming.java
+    testImplementation libs.flink.clients
+    testImplementation libs.flink.connector.datagen
+}
+
+jar {
+    archiveBaseName = 'flink-disk-job'
+    archiveClassifier = ''
+    manifest {
+        attributes 'Main-Class': 'com.nadberezny.flink.example.Main',
+                'Built-By': System.getProperty('user.name'),
+                'Build-Jdk': System.getProperty('java.version')
+    }
+}

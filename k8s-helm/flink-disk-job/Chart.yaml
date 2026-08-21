@@ -1,0 +1,9 @@
+apiVersion: v2
+name: flink-disk-job
+description: dummy no-op Flink streaming job
+
+type: application
+
+version: 0.1.0
+
+appVersion: "0.1.0"
