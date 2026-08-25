@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.nadberezny.mockprom'
+version = '0.1-SNAPSHOT'
+description = 'Mock Prometheus HTTP API serving fake kubelet volume metrics'
+
+ext {
+    // Docker image consumed by k8s-infra-dev/mock_prometheus.tf
+    targetDockerImageName = 'mock-prometheus'
+}
+
+// Deliberately zero runtime dependencies: the whole service is the JDK's
+// com.sun.net.httpserver plus hand-rolled JSON. Keeps the jar plain and the
+// image a bare JRE.
+dependencies {
+    testImplementation libs.junit.jupiter.api
+    testRuntimeOnly libs.junit.jupiter.engine
+    testRuntimeOnly libs.junit.platform.launcher
+}
+
+jar {
+    archiveBaseName = 'mock-prometheus'
+    archiveClassifier = ''
+    manifest {
+        attributes 'Main-Class': 'com.nadberezny.mockprom.MockPrometheusServer'
+    }
+}

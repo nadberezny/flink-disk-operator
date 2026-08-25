@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.name }}
+data:
+  JOB_NAME: "{{ .Values.jobName }}"
+  RECORDS_PER_SECOND: "{{ .Values.job.recordsPerSecond }}"

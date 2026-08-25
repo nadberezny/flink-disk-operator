@@ -1,0 +1,36 @@
+[versions]
+flink = "2.1.0"
+# Must match k8s-infra-dev/locals.tf flink_operator_version: the operator reads the
+# FlinkDeployment CR model from this release, and writes state the mutator plugin
+# (built against the same release) reads back.
+flinkOperator = "1.15.0"
+josdk = "5.5.1"
+slf4j = "2.0.16"
+log4j = "2.24.3"
+junit = "5.11.4"
+junitPlatform = "1.11.4"
+
+[libraries]
+flink-streaming-java = { module = "org.apache.flink:flink-streaming-java", version.ref = "flink" }
+flink-clients = { module = "org.apache.flink:flink-clients", version.ref = "flink" }
+flink-connector-datagen = { module = "org.apache.flink:flink-connector-datagen", version.ref = "flink" }
+
+flink-kubernetes-operator-api = { module = "org.apache.flink:flink-kubernetes-operator-api", version.ref = "flinkOperator" }
+# Provides the FlinkResourceMutator SPI (and, transitively, flink-core's Plugin interface).
+# compileOnly everywhere: at runtime the webhook's own classpath supplies all of it.
+flink-kubernetes-operator = { module = "org.apache.flink:flink-kubernetes-operator", version.ref = "flinkOperator" }
+
+# NB: io.javaoperatorsdk:operator-framework-junit-5 stops at 5.2.5 and is not
+# published for 5.x beyond that, so tests use plain JUnit against extracted
+# decision logic instead of the JOSDK integration-test extension.
+josdk-framework = { module = "io.javaoperatorsdk:operator-framework", version.ref = "josdk" }
+
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
+log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
+log4j-slf4j-impl = { module = "org.apache.logging.log4j:log4j-slf4j-impl", version.ref = "log4j" }
+
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatform" }

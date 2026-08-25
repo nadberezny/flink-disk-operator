@@ -1,0 +1,16 @@
+// Root project only holds settings shared by every module. All real build logic
+// lives in the module build files: :job, :mock-prometheus, :operator.
+
+subprojects {
+    plugins.withId('java') {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
+
+        tasks.withType(Test).configureEach {
+            useJUnitPlatform()
+        }
+    }
+}
