@@ -1,5 +1,5 @@
 [versions]
-flink = "2.1.0"
+flink = "1.20.1"
 # Must match k8s-infra-dev/locals.tf flink_operator_version: the operator reads the
 # FlinkDeployment CR model from this release, and writes state the mutator plugin
 # (built against the same release) reads back.

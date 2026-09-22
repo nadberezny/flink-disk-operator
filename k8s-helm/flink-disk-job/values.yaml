@@ -10,7 +10,8 @@ image:
 serviceAccount: flink
 
 job:
-  flinkVersion: v2_1
+#  flinkVersion: v2_1
+  flinkVersion: v1_20
   jarURI: local:///opt/flink/usrlib/flink-job.jar
   state: running
   parallelism: 2
@@ -27,6 +28,16 @@ taskManager:
   numberOfTaskSlots: 2
   cpu: 0.5
   memorySize: 1600m
+
+diskAutoscaler:
+  enabled: true
+  # Prometheus-compatible endpoint serving kubelet_volume_stats_* (mock in dev)
+  metricsEndpoint: http://mock-prometheus.monitoring.svc.cluster.local:9090
+  # Regex on the persistentvolumeclaim label selecting this job's TM volumes
+  pvcNamePattern: flink-disk-job-taskmanager-.*
+  # Short intervals for a fast local test loop (defaults: 5m / 15m)
+  stabilizationInterval: 30s
+  metricsWindow: 1m
 
 localStorage:
   enabled: true

@@ -18,12 +18,24 @@ spec:
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "{{ .Values.taskManager.numberOfTaskSlots }}"
     jobmanager.memory.process.size: 512mb
+    job.autoscaler.enabled: "true"
     rest.flamegraph.enabled: "false"
     restart-strategy.type: exponential-delay
     restart-strategy.exponential-delay.initial-backoff: 10 s
     restart-strategy.exponential-delay.max-backoff: 5 min
     kubernetes.operator.job.restart.failed: "true"
-    kubernetes.operator.job.autoscaler.enabled: "false"
+    {{- if .Values.diskAutoscaler.enabled }}
+    job.autoscaler.stabilization.interval: {{ .Values.diskAutoscaler.stabilizationInterval | quote }}
+    job.autoscaler.metrics.window: {{ .Values.diskAutoscaler.metricsWindow | quote }}
+    job.autoscaler.metrics.custom-evaluators: disk
+    job.autoscaler.metrics.custom-evaluator.disk.class: org.apache.flink.autoscaler.disk.DiskUsageEvaluator
+    job.autoscaler.metrics.custom-evaluator.disk.metrics.endpoint: {{ .Values.diskAutoscaler.metricsEndpoint | quote }}
+    job.autoscaler.metrics.custom-evaluator.disk.pvc.name-pattern: {{ .Values.diskAutoscaler.pvcNamePattern | quote }}
+    job.autoscaler.scaling.custom-executors: disk
+    job.autoscaler.scaling.custom-executor.disk.class: org.apache.flink.autoscaler.disk.DiskUsageScalingExecutor
+    job.autoscaler.scaling.custom-executor.disk.metrics.endpoint: {{ .Values.diskAutoscaler.metricsEndpoint | quote }}
+    job.autoscaler.scaling.custom-executor.disk.pvc.name-pattern: {{ .Values.diskAutoscaler.pvcNamePattern | quote }}
+    {{- end }}
     {{- if .Values.localStorage.enabled }}
     io.tmp.dirs: {{ .Values.localStorage.mountPath }}
     {{- end }}
