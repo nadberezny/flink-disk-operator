@@ -1,0 +1,14 @@
+# Just enough to read the FlinkDeployment and JSON-patch its spec. KEDA creates the Jobs in the
+# ScaledJob's namespace, so a namespaced Role is sufficient.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "flink-disk-scaledjob.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flink-disk-scaledjob.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["flink.apache.org"]
+    resources: ["flinkdeployments"]
+    resourceNames: [{{ .Values.flinkDeployment.name | quote }}]
+    verbs: ["get", "patch"]

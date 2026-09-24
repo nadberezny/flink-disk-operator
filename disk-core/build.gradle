@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.nadberezny.flink.disk'
+version = '0.1.0-SNAPSHOT'
+description = 'Resize policy, Prometheus client and FlinkDeployment spec navigation shared by the operator and the KEDA resizer'
+
+dependencies {
+    // Typed FlinkDeployment CR model plus fabric8's Quantity; both leak into this module's API
+    // (TaskManagerVolumes takes a FlinkDeployment), hence `api` rather than `implementation`.
+    api libs.flink.kubernetes.operator.api
+    implementation libs.slf4j.api
+
+    testImplementation libs.junit.jupiter.api
+    testRuntimeOnly libs.junit.jupiter.engine
+    testRuntimeOnly libs.junit.platform.launcher
+}

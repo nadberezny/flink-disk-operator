@@ -2,9 +2,7 @@ package com.nadberezny.flink.disk;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Set;
 
 import static com.nadberezny.flink.disk.Quantities.GI;
 import static com.nadberezny.flink.disk.Quantities.MI;
@@ -22,10 +20,7 @@ class DiskSizePolicyTest {
     }
 
     private static DiskSizePolicy policy(double threshold, double targetFill, long granularity, long max) {
-        return new DiskSizePolicy(new OperatorConfig(
-                "http://prometheus:9090", Duration.ofSeconds(5),
-                threshold, targetFill, GI, max, granularity,
-                Duration.ofSeconds(30), Set.of()));
+        return new DiskSizePolicy(new SizingConfig(threshold, targetFill, GI, max, granularity));
     }
 
     private static VolumeUsage usage(long usedBytes, long capacityBytes) {
@@ -133,9 +128,7 @@ class DiskSizePolicyTest {
 
     @Test
     void raisesToConfiguredMinimumEvenWhenIdle() {
-        DiskSizePolicy withBigMin = new DiskSizePolicy(new OperatorConfig(
-                "http://prometheus:9090", Duration.ofSeconds(5), 0.80, 0.50,
-                4 * GI, MAX, GI, Duration.ofSeconds(30), Set.of()));
+        DiskSizePolicy withBigMin = new DiskSizePolicy(new SizingConfig(0.80, 0.50, 4 * GI, MAX, GI));
 
         DiskSizePolicy.Decision decision = withBigMin.decide(List.of(usage(10 * MI, GI)), GI);
 
@@ -155,8 +148,7 @@ class DiskSizePolicyTest {
     @Test
     void rejectsConfigWhereResizeWouldImmediatelyRetrigger() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () ->
-                new OperatorConfig("http://prometheus:9090", Duration.ofSeconds(5),
-                        0.50, 0.80, GI, MAX, GI, Duration.ofSeconds(30), Set.of()));
+                new SizingConfig(0.50, 0.80, GI, MAX, GI));
 
         assertTrue(e.getMessage().contains("must be below"), e.getMessage());
     }

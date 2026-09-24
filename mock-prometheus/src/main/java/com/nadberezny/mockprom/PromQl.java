@@ -48,9 +48,51 @@ final class PromQl {
         }
     }
 
+    /**
+     * {@code max( ... )} and friends around a whole expression. No {@code by}/{@code without}: the
+     * result is always a single series with no labels, which is what KEDA's Prometheus scaler
+     * needs (it rejects multi-element vectors).
+     */
+    private static final Pattern AGGREGATION =
+            Pattern.compile("^\\s*(max|min|sum|count|avg)\\s*\\((.*)\\)\\s*$", Pattern.DOTALL);
+
+    private static final Pattern AGGREGATION_MODIFIER =
+            Pattern.compile("^\\s*(max|min|sum|count|avg)\\s*(by|without)\\b.*|.*\\)\\s*(by|without)\\s*\\(.*",
+                    Pattern.DOTALL);
+
     static List<Sample> evaluate(String query, MetricStore store) {
         if (query == null || query.isBlank()) {
             throw new BadQueryException("empty query");
+        }
+        if (AGGREGATION_MODIFIER.matcher(query).matches()) {
+            throw new BadQueryException("aggregation modifiers 'by' and 'without' are not supported");
+        }
+        java.util.regex.Matcher aggregation = AGGREGATION.matcher(query);
+        if (aggregation.matches()) {
+            return aggregate(aggregation.group(1), evaluateExpression(aggregation.group(2), store));
+        }
+        return evaluateExpression(query, store);
+    }
+
+    /** Collapses a vector to one label-less sample; an empty vector stays empty, as in Prometheus. */
+    private static List<Sample> aggregate(String function, List<Sample> input) {
+        if (input.isEmpty()) {
+            return List.of();
+        }
+        double value = switch (function) {
+            case "max" -> input.stream().mapToDouble(Sample::value).max().orElseThrow();
+            case "min" -> input.stream().mapToDouble(Sample::value).min().orElseThrow();
+            case "sum" -> input.stream().mapToDouble(Sample::value).sum();
+            case "count" -> input.size();
+            case "avg" -> input.stream().mapToDouble(Sample::value).average().orElseThrow();
+            default -> throw new BadQueryException("unsupported aggregation '" + function + "'");
+        };
+        return List.of(new Sample(Map.of(), value));
+    }
+
+    private static List<Sample> evaluateExpression(String query, MetricStore store) {
+        if (query.isBlank()) {
+            throw new BadQueryException("empty aggregation argument");
         }
         List<String> operands = splitTopLevel(query, '/');
         if (operands.size() == 1) {

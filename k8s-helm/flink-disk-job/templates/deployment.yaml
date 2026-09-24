@@ -23,7 +23,22 @@ spec:
     restart-strategy.exponential-delay.initial-backoff: 10 s
     restart-strategy.exponential-delay.max-backoff: 5 min
     kubernetes.operator.job.restart.failed: "true"
-    kubernetes.operator.job.autoscaler.enabled: "false"
+    {{- if .Values.diskAutoscaler.enabled }}
+    # The forked operator's disk scaler runs inside the Flink autoscaler framework, so the
+    # autoscaler is only switched on together with it. With a stock operator this stays off and
+    # the only TaskManager redeploys are the disk resizes driven from outside (see keda-scaled-job).
+    job.autoscaler.enabled: "true"
+    job.autoscaler.stabilization.interval: {{ .Values.diskAutoscaler.stabilizationInterval | quote }}
+    job.autoscaler.metrics.window: {{ .Values.diskAutoscaler.metricsWindow | quote }}
+    job.autoscaler.metrics.custom-evaluators: disk
+    job.autoscaler.metrics.custom-evaluator.disk.class: org.apache.flink.autoscaler.disk.DiskUsageEvaluator
+    job.autoscaler.metrics.custom-evaluator.disk.metrics.endpoint: {{ .Values.diskAutoscaler.metricsEndpoint | quote }}
+    job.autoscaler.metrics.custom-evaluator.disk.pvc.name-pattern: {{ .Values.diskAutoscaler.pvcNamePattern | quote }}
+    job.autoscaler.scaling.custom-executors: disk
+    job.autoscaler.scaling.custom-executor.disk.class: org.apache.flink.autoscaler.disk.DiskUsageScalingExecutor
+    job.autoscaler.scaling.custom-executor.disk.metrics.endpoint: {{ .Values.diskAutoscaler.metricsEndpoint | quote }}
+    job.autoscaler.scaling.custom-executor.disk.pvc.name-pattern: {{ .Values.diskAutoscaler.pvcNamePattern | quote }}
+    {{- end }}
     {{- if .Values.localStorage.enabled }}
     io.tmp.dirs: {{ .Values.localStorage.mountPath }}
     {{- end }}

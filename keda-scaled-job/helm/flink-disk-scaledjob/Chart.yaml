@@ -1,0 +1,6 @@
+apiVersion: v2
+name: flink-disk-scaledjob
+description: KEDA ScaledJob that grows a FlinkDeployment's TaskManager ephemeral volume when Prometheus reports it filling up
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,49 @@
+# The FlinkDeployment this ScaledJob watches. It must live in the release namespace: the Job runs
+# there, and its Role is namespaced.
+flinkDeployment:
+  name: flink-disk-job
+  # Name of the generic ephemeral volume on the TaskManager pod template. Used only to build the
+  # PVC regex for the trigger; the resizer itself discovers the volume from the spec.
+  volumeName: local-storage
+
+prometheus:
+  # Base URL of a Prometheus-compatible HTTP API (mock-prometheus in dev).
+  url: http://mock-prometheus.monitoring.svc.cluster.local:9090
+  timeoutSeconds: 10
+
+# Resize policy, identical to the operator's DISK_* variables.
+disk:
+  threshold: "0.80"      # KEDA activation and the resizer's trigger ratio
+  targetFill: "0.50"     # usage lands here after a resize
+  minSize: 1Gi           # keep equal to the chart's initial size, or the first Job "raises to minimum"
+  maxSize: 20Gi
+  granularity: 1Gi
+
+image:
+  repository: nadberezny/flink-disk-resizer
+  tag: latest
+  pullPolicy: Always
+
+keda:
+  pollingInterval: 30
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # Job-level retry: a lost optimistic lock (resourceVersion changed) fails the Job and re-runs it.
+  backoffLimit: 2
+  activeDeadlineSeconds: 180
+
+# Log the patch instead of applying it.
+dryRun: false
+logLevel: info
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi
+
+serviceAccount:
+  # Defaults to the release name.
+  name: ""

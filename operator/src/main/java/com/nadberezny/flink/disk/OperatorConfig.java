@@ -27,24 +27,8 @@ public record OperatorConfig(
         if (prometheusUrl == null || prometheusUrl.isBlank()) {
             throw new IllegalArgumentException("PROMETHEUS_URL is required");
         }
-        if (threshold <= 0 || threshold > 1) {
-            throw new IllegalArgumentException("DISK_THRESHOLD must be in (0,1], got " + threshold);
-        }
-        if (targetFill <= 0 || targetFill >= 1) {
-            throw new IllegalArgumentException("DISK_TARGET_FILL must be in (0,1), got " + targetFill);
-        }
-        // Otherwise a resize would land at or above the threshold and immediately re-trigger.
-        if (targetFill >= threshold) {
-            throw new IllegalArgumentException(
-                    "DISK_TARGET_FILL (" + targetFill + ") must be below DISK_THRESHOLD (" + threshold
-                            + "), or every resize would immediately breach the threshold again");
-        }
-        if (minSizeBytes <= 0) {
-            throw new IllegalArgumentException("DISK_MIN_SIZE must be positive");
-        }
-        if (maxSizeBytes < minSizeBytes) {
-            throw new IllegalArgumentException("DISK_MAX_SIZE must be >= DISK_MIN_SIZE");
-        }
+        // Threshold/target/size validation lives with the policy in :disk-core.
+        new SizingConfig(threshold, targetFill, minSizeBytes, maxSizeBytes, granularityBytes);
         if (pollInterval.isZero() || pollInterval.isNegative()) {
             throw new IllegalArgumentException("POLL_INTERVAL_SECONDS must be positive");
         }
@@ -63,6 +47,11 @@ public record OperatorConfig(
                 namespacesEnv());
     }
 
+    /** The subset the resize policy needs, shared with the KEDA resizer. */
+    public SizingConfig sizing() {
+        return new SizingConfig(threshold, targetFill, minSizeBytes, maxSizeBytes, granularityBytes);
+    }
+
     /** Empty means "all namespaces". */
     private static Set<String> namespacesEnv() {
         String raw = env("WATCH_NAMESPACES", "");
@@ -77,16 +66,13 @@ public record OperatorConfig(
 
     public String describe() {
         return "prometheus=" + prometheusUrl
-                + " threshold=" + pct(threshold)
-                + " targetFill=" + pct(targetFill)
-                + " size=[" + Quantities.format(minSizeBytes) + ".." + Quantities.format(maxSizeBytes) + "]"
-                + " granularity=" + Quantities.format(granularityBytes)
+                + " " + sizing().describe()
                 + " poll=" + pollInterval.toSeconds() + "s"
                 + " namespaces=" + (watchNamespaces.isEmpty() ? "<all>" : List.copyOf(watchNamespaces));
     }
 
     static String pct(double ratio) {
-        return Math.round(ratio * 1000) / 10.0 + "%";
+        return SizingConfig.pct(ratio);
     }
 
     private static String env(String name, String defaultValue) {

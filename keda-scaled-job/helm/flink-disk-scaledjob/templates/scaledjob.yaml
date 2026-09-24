@@ -1,0 +1,73 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: {{ .Values.flinkDeployment.name }}-disk-resizer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "flink-disk-scaledjob.labels" . | nindent 4 }}
+spec:
+  pollingInterval: {{ .Values.keda.pollingInterval }}
+  successfulJobsHistoryLimit: {{ .Values.keda.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.keda.failedJobsHistoryLimit }}
+  minReplicaCount: 0
+  # One Job at a time: the resizer is the single decision point, and a second concurrent run
+  # would only lose the resourceVersion lock.
+  maxReplicaCount: 1
+  # No `rollout` block on purpose. Its `strategy` enum is ["gradual", "immediate"] (KEDA's docs
+  # still say "default", which the CRD rejects), and the built-in behaviour is what we want: a
+  # chart upgrade may kill an in-flight resizer Job, which is safe because the patch is a single
+  # atomic call under an optimistic lock and the next poll re-runs it.
+  scalingStrategy:
+    strategy: default
+  jobTargetRef:
+    parallelism: 1
+    completions: 1
+    backoffLimit: {{ .Values.keda.backoffLimit }}
+    activeDeadlineSeconds: {{ .Values.keda.activeDeadlineSeconds }}
+    template:
+      metadata:
+        labels:
+          {{- include "flink-disk-scaledjob.labels" . | nindent 10 }}
+      spec:
+        serviceAccountName: {{ include "flink-disk-scaledjob.serviceAccountName" . }}
+        restartPolicy: Never
+        containers:
+          - name: resizer
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            env:
+              - name: PROMETHEUS_URL
+                value: {{ .Values.prometheus.url | quote }}
+              - name: PROMETHEUS_TIMEOUT_SECONDS
+                value: {{ .Values.prometheus.timeoutSeconds | quote }}
+              - name: TARGET_NAMESPACE
+                value: {{ .Release.Namespace | quote }}
+              - name: FLINK_DEPLOYMENT
+                value: {{ .Values.flinkDeployment.name | quote }}
+              - name: DISK_THRESHOLD
+                value: {{ .Values.disk.threshold | quote }}
+              - name: DISK_TARGET_FILL
+                value: {{ .Values.disk.targetFill | quote }}
+              - name: DISK_MIN_SIZE
+                value: {{ .Values.disk.minSize | quote }}
+              - name: DISK_MAX_SIZE
+                value: {{ .Values.disk.maxSize | quote }}
+              - name: DISK_SIZE_GRANULARITY
+                value: {{ .Values.disk.granularity | quote }}
+              - name: DRY_RUN
+                value: {{ .Values.dryRun | quote }}
+              - name: LOG_LEVEL
+                value: {{ .Values.logLevel | quote }}
+            resources:
+              {{- toYaml .Values.resources | nindent 14 }}
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: {{ .Values.prometheus.url | quote }}
+        # Fullest TaskManager volume of this deployment as a 0..1 ratio.
+        query: |-
+          {{ include "flink-disk-scaledjob.query" . }}
+        # Active only while the ratio is above the threshold; with maxReplicaCount 1 that means
+        # exactly one Job per polling interval until the volume is no longer reported as full.
+        threshold: {{ .Values.disk.threshold | quote }}
+        activationThreshold: {{ .Values.disk.threshold | quote }}

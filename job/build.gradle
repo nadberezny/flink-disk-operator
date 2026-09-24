@@ -9,6 +9,12 @@ ext {
     targetDockerImageName = 'flink-disk-job'
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
 dependencies {
     compileOnly libs.flink.streaming.java
     compileOnly libs.flink.clients

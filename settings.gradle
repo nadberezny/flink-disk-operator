@@ -1,10 +1,12 @@
 rootProject.name = 'flink-disk-operator'
 
 include ':contract'
+include ':disk-core'
 include ':job'
 include ':operator'
 include ':mutator'
 include ':mock-prometheus'
+include ':keda-scaled-job'
 
 dependencyResolutionManagement {
     repositories {

@@ -3,12 +3,21 @@ package com.nadberezny.flink.example;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.xml.crypto.AlgorithmMethod;
+import javax.xml.crypto.KeySelectorException;
+import javax.xml.crypto.KeySelectorResult;
+import javax.xml.crypto.XMLCryptoContext;
+import javax.xml.crypto.dsig.keyinfo.KeyInfo;
 
 /**
  * Deliberately boring streaming job: it emits a slow heartbeat stream and throws it away.
@@ -48,6 +57,18 @@ public final class Main {
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "heartbeat-source")
                 .map(new HeartbeatLogger())
                 .name("heartbeat-logger")
+                .keyBy(new KeySelector<Long, Long>() {
+                    @Override
+                    public Long getKey(Long value) throws Exception {
+                        return 0L;
+                    }
+                })
+                .process(new KeyedProcessFunction<Long, Long, Long>() {
+                    @Override
+                    public void processElement(Long value, KeyedProcessFunction<Long, Long, Long>.Context ctx, Collector<Long> out) throws Exception {
+
+                    }
+                })
                 .sinkTo(new DiscardingSink<>())
                 .name("discarding-sink");
 

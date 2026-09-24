@@ -32,10 +32,11 @@ public class PrometheusClient {
     private final java.time.Duration timeout;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public PrometheusClient(OperatorConfig config) {
-        this.baseUrl = config.prometheusUrl().replaceAll("/+$", "");
-        this.timeout = config.prometheusTimeout();
-        this.http = HttpClient.newBuilder().connectTimeout(config.prometheusTimeout()).build();
+    /** @param baseUrl base URL of the Prometheus HTTP API, e.g. {@code http://prometheus:9090} */
+    public PrometheusClient(String baseUrl, java.time.Duration timeout) {
+        this.baseUrl = baseUrl.replaceAll("/+$", "");
+        this.timeout = timeout;
+        this.http = HttpClient.newBuilder().connectTimeout(timeout).build();
     }
 
     /**

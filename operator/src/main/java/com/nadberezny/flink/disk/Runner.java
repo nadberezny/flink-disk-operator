@@ -24,7 +24,7 @@ public final class Runner {
         Operator operator = new Operator(overrider ->
                 overrider.withReconciliationTerminationTimeout(Duration.ofSeconds(10)));
         operator.register(
-                new FlinkDiskReconciler(config, new PrometheusClient(config), Clock.systemUTC()),
+                new FlinkDiskReconciler(config, new PrometheusClient(config.prometheusUrl(), config.prometheusTimeout()), Clock.systemUTC()),
                 overrider -> {
                     if (!config.watchNamespaces().isEmpty()) {
                         overrider.settingNamespaces(config.watchNamespaces());

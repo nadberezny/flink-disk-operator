@@ -1,10 +1,13 @@
 [versions]
-flink = "2.1.0"
+flink = "1.20.1"
 # Must match k8s-infra-dev/locals.tf flink_operator_version: the operator reads the
 # FlinkDeployment CR model from this release, and writes state the mutator plugin
 # (built against the same release) reads back.
 flinkOperator = "1.15.0"
 josdk = "5.5.1"
+# The fabric8 line :operator ends up on through JOSDK; :keda-scaled-job pins it explicitly so both
+# images run the same client (the operator-api jar alone would resolve an older one).
+fabric8 = "7.8.0"
 slf4j = "2.0.16"
 log4j = "2.24.3"
 junit = "5.11.4"
@@ -23,6 +26,8 @@ flink-kubernetes-operator = { module = "org.apache.flink:flink-kubernetes-operat
 # NB: io.javaoperatorsdk:operator-framework-junit-5 stops at 5.2.5 and is not
 # published for 5.x beyond that, so tests use plain JUnit against extracted
 # decision logic instead of the JOSDK integration-test extension.
+kubernetes-client = { module = "io.fabric8:kubernetes-client", version.ref = "fabric8" }
+
 josdk-framework = { module = "io.javaoperatorsdk:operator-framework", version.ref = "josdk" }
 
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
