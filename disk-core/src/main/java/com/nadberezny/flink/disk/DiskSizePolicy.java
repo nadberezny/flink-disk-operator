@@ -17,9 +17,9 @@ import java.util.Optional;
  */
 public final class DiskSizePolicy {
 
-    private final OperatorConfig config;
+    private final SizingConfig config;
 
-    public DiskSizePolicy(OperatorConfig config) {
+    public DiskSizePolicy(SizingConfig config) {
         this.config = config;
     }
 
@@ -53,7 +53,7 @@ public final class DiskSizePolicy {
         VolumeUsage v = worst.get();
         if (v.ratio() < config.threshold()) {
             return unchanged(floor, currentDesiredBytes,
-                    "below threshold: " + v + " < " + OperatorConfig.pct(config.threshold()), worst);
+                    "below threshold: " + v + " < " + SizingConfig.pct(config.threshold()), worst);
         }
 
         long wanted = Quantities.roundUp(
@@ -65,7 +65,7 @@ public final class DiskSizePolicy {
 
         if (capped > currentDesiredBytes) {
             return new Decision(capped, true, atMax,
-                    "usage " + v + " >= " + OperatorConfig.pct(config.threshold())
+                    "usage " + v + " >= " + SizingConfig.pct(config.threshold())
                             + ", growing " + Quantities.format(currentDesiredBytes) + " -> "
                             + Quantities.format(capped)
                             + (atMax ? " (clamped to max " + Quantities.format(config.maxSizeBytes()) + ")" : ""),
@@ -75,9 +75,9 @@ public final class DiskSizePolicy {
         // Over threshold but the size cannot go up: either already at max, or the rounded target
         // landed on the size we already have.
         String reason = atMax || capped >= config.maxSizeBytes()
-                ? "usage " + v + " >= " + OperatorConfig.pct(config.threshold())
+                ? "usage " + v + " >= " + SizingConfig.pct(config.threshold())
                         + " but already at max size " + Quantities.format(config.maxSizeBytes())
-                : "usage " + v + " >= " + OperatorConfig.pct(config.threshold())
+                : "usage " + v + " >= " + SizingConfig.pct(config.threshold())
                         + " but target size rounds to the current " + Quantities.format(currentDesiredBytes);
         return new Decision(currentDesiredBytes, false, atMax || capped >= config.maxSizeBytes(),
                 reason, worst);

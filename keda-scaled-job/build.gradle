@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.nadberezny.flink.disk'
+version = '0.1.0-SNAPSHOT'
+description = 'flink-disk-resizer: one-shot Job launched by a KEDA ScaledJob that grows a FlinkDeployment TaskManager volume'
+
+ext {
+    // Docker image consumed by keda-scaled-job/helm/flink-disk-scaledjob via k8s-infra-dev/keda_scaled_job.tf
+    targetDockerImageName = 'flink-disk-resizer'
+}
+
+application {
+    // Produces build/install/flink-disk-resizer/bin/flink-disk-resizer, which the Dockerfile
+    // copies wholesale - same layout as :operator.
+    applicationName = 'flink-disk-resizer'
+    mainClass = 'com.nadberezny.flink.disk.keda.Resizer'
+
+    // flink-kubernetes-operator-api ships a log4j2.properties at its jar root that would win
+    // auto-discovery over our log4j2.xml. Name the config explicitly.
+    applicationDefaultJvmArgs = ['-Dlog4j2.configurationFile=classpath:log4j2.xml']
+}
+
+dependencies {
+    implementation project(':contract')
+    implementation project(':disk-core')
+    // Pin the fabric8 line explicitly; see the fabric8 entry in gradle/libs.versions.toml.
+    implementation libs.kubernetes.client
+    implementation libs.slf4j.api
+
+    runtimeOnly libs.log4j.slf4j2.impl
+    runtimeOnly libs.log4j.core
+
+    testImplementation libs.junit.jupiter.api
+    testRuntimeOnly libs.junit.jupiter.engine
+    testRuntimeOnly libs.junit.platform.launcher
+}

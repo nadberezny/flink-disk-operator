@@ -12,6 +12,10 @@ public final class Names {
 
     public static final String FLINK_DEPLOYMENT_LABEL = DOMAIN + "/flink-deployment";
 
+    /** Stamped by the KEDA-launched resizer (keda-scaled-job) on the FlinkDeployment it patched. */
+    public static final String KEDA_LAST_RESIZE_REASON_ANNOTATION = DOMAIN + "/keda-last-resize-reason";
+    public static final String KEDA_LAST_RESIZE_AT_ANNOTATION = DOMAIN + "/keda-last-resize-at";
+
     public static final String STATE_DESIRED_SIZE = "desiredSize";
     public static final String STATE_VOLUME_NAME = "volumeName";
     public static final String STATE_RESIZE_GENERATION = "resizeGeneration";

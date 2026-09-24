@@ -10,6 +10,6 @@ public record VolumeUsage(String persistentVolumeClaim, long usedBytes, long cap
     @Override
     public String toString() {
         return persistentVolumeClaim + " " + Quantities.format(usedBytes) + "/"
-                + Quantities.format(capacityBytes) + " (" + OperatorConfig.pct(ratio()) + ")";
+                + Quantities.format(capacityBytes) + " (" + SizingConfig.pct(ratio()) + ")";
     }
 }

@@ -94,11 +94,52 @@ class PromQlTest {
     }
 
     @Test
+    void maxOverDivisionPicksTheFullestVolumeAndDropsLabels() {
+        MetricStore store = store("namespace=stream,pvc=tm-1-storage,capacity=1Gi,used=880Mi"
+                + ";namespace=stream,pvc=tm-2-storage,capacity=1Gi,used=100Mi");
+
+        List<PromQl.Sample> samples = PromQl.evaluate(
+                "max(kubelet_volume_stats_used_bytes{namespace=\"stream\"}"
+                        + " / kubelet_volume_stats_capacity_bytes{namespace=\"stream\"})", store);
+
+        assertEquals(1, samples.size());
+        assertEquals(880.0 / 1024.0, samples.get(0).value(), 1e-9);
+        assertEquals(Map.of(), samples.get(0).labels());
+    }
+
+    @Test
+    void aggregatesSumCountMinAvgOverASelector() {
+        MetricStore store = store("namespace=stream,pvc=tm-1-storage,capacity=1Gi,used=1Mi"
+                + ";namespace=stream,pvc=tm-2-storage,capacity=1Gi,used=3Mi");
+
+        assertEquals(2.0, PromQl.evaluate("count(kubelet_volume_stats_used_bytes)", store).get(0).value());
+        assertEquals(4.0 * 1024 * 1024, PromQl.evaluate("sum(kubelet_volume_stats_used_bytes)", store).get(0).value());
+        assertEquals(1.0 * 1024 * 1024, PromQl.evaluate("min(kubelet_volume_stats_used_bytes)", store).get(0).value());
+        assertEquals(2.0 * 1024 * 1024, PromQl.evaluate(" avg (kubelet_volume_stats_used_bytes) ", store).get(0).value());
+    }
+
+    @Test
+    void aggregationOfNothingIsAnEmptyVector() {
+        MetricStore store = store("namespace=stream,pvc=tm-1-storage,capacity=1Gi,used=1Mi");
+
+        List<PromQl.Sample> samples = PromQl.evaluate(
+                "max(kubelet_volume_stats_used_bytes{namespace=\"nowhere\"})", store);
+
+        assertTrue(samples.isEmpty());
+    }
+
+    @Test
     void rejectsUnsupportedQueries() {
         MetricStore store = store("");
 
         assertThrows(PromQl.BadQueryException.class,
-                () -> PromQl.evaluate("sum(kubelet_volume_stats_used_bytes)", store));
+                () -> PromQl.evaluate("topk(1, kubelet_volume_stats_used_bytes)", store));
+        assertThrows(PromQl.BadQueryException.class,
+                () -> PromQl.evaluate("max(kubelet_volume_stats_used_bytes", store));
+        assertThrows(PromQl.BadQueryException.class,
+                () -> PromQl.evaluate("max by (namespace) (kubelet_volume_stats_used_bytes)", store));
+        assertThrows(PromQl.BadQueryException.class,
+                () -> PromQl.evaluate("max(kubelet_volume_stats_used_bytes) by (namespace)", store));
         assertThrows(PromQl.BadQueryException.class,
                 () -> PromQl.evaluate("node_filesystem_free_bytes", store));
         assertThrows(PromQl.BadQueryException.class, () -> PromQl.evaluate("", store));

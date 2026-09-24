@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Function;
 
 import static com.nadberezny.flink.disk.Quantities.GI;
@@ -46,10 +45,8 @@ class PrometheusClientTest {
         });
         server.start();
 
-        client = new PrometheusClient(new OperatorConfig(
-                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
-                Duration.ofSeconds(5), 0.80, 0.50, GI, 20 * GI, GI,
-                Duration.ofSeconds(30), Set.of()));
+        client = new PrometheusClient(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/", Duration.ofSeconds(5));
     }
 
     private record Response(int status, String body) {}

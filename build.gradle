@@ -1,5 +1,6 @@
 // Root project only holds settings shared by every module. All real build logic
-// lives in the module build files: :job, :mock-prometheus, :operator.
+// lives in the module build files: :contract, :disk-core, :job, :keda-scaled-job, :mock-prometheus,
+// :mutator, :operator.
 
 subprojects {
     plugins.withId('java') {

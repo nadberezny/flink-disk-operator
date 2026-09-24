@@ -26,6 +26,7 @@ application {
 
 dependencies {
     implementation project(':contract')
+    implementation project(':disk-core')
     implementation libs.josdk.framework
     // Typed FlinkDeployment CR model. Brings its own fabric8 client; Gradle resolves
     // it against JOSDK's - see `./gradlew :operator:dependencies` if that ever skews.

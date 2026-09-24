@@ -7,6 +7,11 @@ metrics, targeting Flink clusters managed by the
 
 Not production grade. Explicitly a proof of concept.
 
+There are two variants in this repo. This README describes the **operator + admission webhook**
+one. The **KEDA ScaledJob** one, which needs no custom operator and patches the FlinkDeployment
+spec directly, lives in [`keda-scaled-job/`](keda-scaled-job) with its own README; the two share
+the resize policy through [`disk-core/`](disk-core).
+
 ## How it works
 
 ```
@@ -70,28 +75,38 @@ the line; the operator refuses to start otherwise.
 |------|-----------|
 | [`operator/`](operator) | The operator. JOSDK reconciler over `FlinkDeployment`. Decides. |
 | [`mutator/`](mutator) | Flink plugin for the Flink operator's admission webhook. Applies. |
+| [`disk-core/`](disk-core) | Resize policy, Prometheus client, spec navigation. Shared by the operator and the KEDA resizer. |
+| [`keda-scaled-job/`](keda-scaled-job) | The KEDA variant: `ScaledJob` chart + the one-shot `flink-disk-resizer` Job. |
 | [`contract/`](contract) | The label/annotation/ConfigMap keys the two share. Dependency-free. |
 | [`job/`](job) | A deliberately idle Flink streaming job — the workload under test. |
 | [`mock-prometheus/`](mock-prometheus) | Stand-in for Prometheus, so disk pressure can be triggered instead of waited for. |
 | [`k8s-helm/flink-disk-job/`](k8s-helm/flink-disk-job) | Helm chart for the `FlinkDeployment`. |
 | [`k8s-infra-dev/`](k8s-infra-dev) | Terraform for the local k3d cluster and everything on it. |
-| [`scripts/`](scripts) | Image build/push helper. |
 
 ## Running it locally
 
+Images are built from the repo root and pushed to the registry named in
+`k8s-infra-dev/locals.tf` (`nadberezny` on Docker Hub by default; k3d nodes pull from there and
+cannot see the host's local images). Each module's `Dockerfile` header names the Gradle task it
+expects to have run first, e.g.
+
 ```bash
-./scripts/build-images.sh
+./gradlew :mock-prometheus:jar :keda-scaled-job:installDist :operator:installDist
 ```
+
+```bash
+docker buildx build --platform linux/arm64 --push -t nadberezny/mock-prometheus:0.2 -f mock-prometheus/Dockerfile .
+```
+
+Then:
 
 ```bash
 cd k8s-infra-dev && terraform init && terraform apply
 ```
 
-`build-images.sh` defaults to `REGISTRY=nadberezny` / `TAG=latest` (Docker Hub) to match
-`k8s-infra-dev/locals.tf`. To use the k3d-hosted registry instead, uncomment
-`image_registry_in_cluster = "k3d-flink:12345"` in `locals.tf` and run
-`REGISTRY=k3d-flink:12345 TAG=dev ./scripts/build-images.sh`. `MODE=import` skips registries
-entirely and uses `k3d image import`.
+`k8s-infra-dev` currently runs the **stock** Flink operator and the KEDA variant; the operator
+Deployment in `flink_disk_operator.tf` is commented out. See
+[`keda-scaled-job/README.md`](keda-scaled-job/README.md) for the demo loop of that variant.
 
 ### Watching the loop
 
@@ -220,8 +235,10 @@ fabric8, Flink, slf4j or Jackson.
 
 Serves a small slice of the Prometheus HTTP API over in-memory fake series, plus a control API for
 moving the numbers. Supports `kubelet_volume_stats_{used,capacity,available}_bytes`, label matchers
-(`=`, `!=`, `=~`, `!~`), and a single `/` division between two selectors. Anything else — functions,
-aggregations, ranges — is rejected with a Prometheus-shaped error rather than quietly
+(`=`, `!=`, `=~`, `!~`), a single `/` division between two selectors, and one of
+`max|min|sum|count|avg( ... )` wrapped around the whole expression (no `by`/`without`; the result
+is a single label-less sample, which is what KEDA's Prometheus scaler requires). Anything else —
+other functions, ranges — is rejected with a Prometheus-shaped error rather than quietly
 misinterpreted.
 
 ```
@@ -247,8 +264,9 @@ demo alive across TaskManager restarts (each restart mints a fresh ephemeral PVC
 Tests cover the parts where being wrong is quiet rather than loud: the resize policy
 (`DiskSizePolicyTest`), state serialisation and the PVC-name regex (`DiskStateTest`), spec
 navigation (`TaskManagerVolumesTest`), the Prometheus client against a real HTTP server
-(`PrometheusClientTest`), the mock's PromQL subset (`PromQlTest`), mutator behaviour including
-fail-open (`DiskSizeMutatorTest`), and plugin classloading against the real built jar
+(`PrometheusClientTest`), the mock's PromQL subset (`PromQlTest`, `QueryEndpointTest`), the KEDA
+resizer's JSON patch and configuration (`SpecPatchTest`, `ResizerConfigTest`), mutator behaviour
+including fail-open (`DiskSizeMutatorTest`), and plugin classloading against the real built jar
 (`PluginClassLoadingTest`).
 
 ## Version coupling

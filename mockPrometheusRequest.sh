@@ -1,0 +1,1 @@
+curl -X POST 'http://mock-prometheus.localtest.me:3080/mock/volumes?namespace=stream&pvc=flink-disk-job-taskmanager-1-1-local-storage&capacity=2Gi&used=900Mi&growth=0'

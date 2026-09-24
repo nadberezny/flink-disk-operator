@@ -57,7 +57,7 @@ public class FlinkDiskReconciler implements Reconciler<FlinkDeployment> {
     public FlinkDiskReconciler(OperatorConfig config, PrometheusClient prometheus, Clock clock) {
         this.config = config;
         this.prometheus = prometheus;
-        this.policy = new DiskSizePolicy(config);
+        this.policy = new DiskSizePolicy(config.sizing());
         this.clock = clock;
     }
 
